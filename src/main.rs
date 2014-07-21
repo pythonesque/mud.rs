@@ -1,3 +1,4 @@
+#![feature(macro_rules)]
 #![feature(phase)]
 #![feature(unsafe_destructor)]
 #[phase(plugin)] extern crate green;
@@ -30,6 +31,5 @@ fn main() {
 
     let mob = Mob::make();
     let mobcap = Actor::make_actor(box mob);
-    mobcap.send_cmd_async(mob::Transfer).unwrap();
     mobcap.send_cmd_async(mob::Transfer).unwrap();
 }

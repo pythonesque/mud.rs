@@ -3,34 +3,9 @@ use std::collections::EnumSet;
 
 use core::cap::{Actor, CapSet, CapType, Command};
 
-#[deriving(Clone)]
-enum MobCap {
-    CapTransfer,
-}
-
-impl CLike for MobCap {
-    fn to_uint(&self) -> uint {
-        *self as uint
-    }
-
-    fn from_uint(v: uint) -> MobCap {
-        match v {
-            0 => CapTransfer,
-            _ => {
-                // should never happen if only used with EnumSet, but check to be safe
-                fail!(format!("{} is not associated with any MobCap type", v))
-            }
-        }
-    }
-}
-
-impl CapType for MobCap {
-    fn all() -> EnumSet<MobCap> {
-        let mut cap_set = EnumSet::empty();
-        cap_set.add(CapTransfer);
-        cap_set
-    }
-}
+cap_type_set!(MobCap,
+    CapTransfer = 0,
+)
 
 #[deriving(Show)]
 pub enum MobCmd{

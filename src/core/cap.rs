@@ -1,4 +1,3 @@
-//#![feature(macro_rules)
 use std::collections::EnumSet;
 use std::collections::enum_set::CLike;
 
@@ -30,10 +29,37 @@ pub struct CapSet<T, C> {
     tx: Sender<Option<C>>,
 }
 
-/* sugar for easily creating a capability type set  */
-/*macro_rules! captypeset (
-    $($var:ident ...),*
-);*/
+/// sugar for easily creating a capability type set
+macro_rules! cap_type_set(
+    ($cap_type:ident,
+        $($var:ident = $i:expr),*
+    ) => (
+        #[deriving(Clone, FromPrimitive)]
+        enum $cap_type {
+            $($var = $i),*
+        }
+
+       impl CLike for $cap_type {
+            fn to_uint(&self) -> uint {
+                *self as uint
+            }
+
+            fn from_uint(v: uint) -> $cap_type {
+                FromPrimitive::from_uint(v).unwrap()
+            }
+        }
+
+        impl CapType for $cap_type {
+            #[inline(always)]
+            fn all() -> EnumSet<$cap_type> {
+                let mut cap_type_set = EnumSet::empty();
+                $( cap_type_set.add($var); )*
+                cap_type_set
+            }
+        }
+    );
+    ($c:ident, $($v:ident = $i:expr),+, ) => (cap_type_set!($c, $($v = $i),+))
+)
 
 /// We deliberately do not implement Clone for this.  Anyone who wants to do so
 /// must wrap it in a Arc first.
@@ -49,7 +75,7 @@ impl<T: CapType, C: Command<T> + Send> CapSet<T, C> {
     }
 }
 
-/// Justification this is only constructed in the cap module,
+/// Justification: this is only constructed in the cap module,
 /// and we guarantee that the types are Send where it is
 /// constructed.
 /// (EnumSet<T> is Send because it's internally a uint).
