@@ -23,7 +23,7 @@ impl Item {
         Item { data: data, contents: contents }
     }
 
-    pub fn add<'a>(&'a self, item: Item) -> Item {
+    pub fn clone_add<'a>(&'a self, item: Item) -> Item {
         let mut contents = self.contents.clone();
         contents.make_unique().push(item);
         Item { data: self.data, contents: contents }
