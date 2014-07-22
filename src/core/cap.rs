@@ -35,7 +35,7 @@ enum CmdWrap<C> {
 
 enum CapRef<C, A> {
     Task(Sender<CmdWrap<C>>),
-    Ref(Box<A>),
+    Ref(A),
 }
 
 pub struct CapSet<T, C, A> {
@@ -140,13 +140,12 @@ pub trait Actor<T: CapType, C: Command<T> + Send>: fmt::Show + Send {
     /// cmd: Command structure received as an argument.
     fn handle(&mut self, cmd: C/*, cap_set: &CapSet<T, C, Self>*/);
 
-    fn make_actor(actor: Box<Self>) -> CapSet<T, C, Self> {
-        let cap_types : EnumSet<T> = CapType::all();
-        let cap_set : CapSet<T, C, Self> = CapSet { cap_types: cap_types, cap_ref: Ref(actor) };
+    fn make_actor(actor: Self) -> CapSet<T, C, Self> {
+        let cap_set : CapSet<T, C, Self> = CapSet { cap_types: CapType::all(), cap_ref: Ref(actor) };
         cap_set
     }
 
-    fn spawn_actor(actor: Box<Self>) -> CapSet<T, C, Self> {
+    fn spawn_actor(actor: Self) -> CapSet<T, C, Self> {
         let (tx, rx) = channel();
         let cap_types = CapType::all();
         let tx_clone = tx.clone();
