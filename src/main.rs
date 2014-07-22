@@ -5,28 +5,30 @@
 
 use core::cap::Actor;
 use core::item;
-use core::item::{Item, ItemData};
+use core::item::{Item, ItemCapSet, ItemData};
 use core::mob;
-use core::mob::{Mob, MobData};
+use core::mob::{Mob, MobCapSet, MobData};
 
 mod core;
 
 green_start!(main)
 
 fn main() {
-    let item_data = Item::make(ItemData);
-    let mut item = Actor::spawn_actor(item_data);
+    let item_data = ItemData;
+    let item = Item::make(item_data);
+    let itemcap = Actor::spawn_actor(item);
     for i in range(0u, 2) {
         let new_item = if i % 2 == 0 {
             Actor::spawn_actor(Item::make(ItemData))
         } else {
             Actor::make_actor(Item::make(ItemData))
         };
-        item.send_cmd_async(item::Give(new_item)).unwrap();
+        //itemcap.send_cmd(item::Give(new_item)).unwrap();
     }
 
-    let mob = Mob::make(MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()});
+    let mob_data = MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()};
+    let mob = Mob::make(mob_data);
     let mut mobcap = Actor::make_actor(mob);
-    mobcap.send_cmd_async(mob::Give(item)).unwrap();
+    mobcap.send_cmd(mob::Give(itemcap)).unwrap();
     println!("{}", mobcap);
 }

@@ -1,8 +1,9 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
 
-use core::cap::{Actor, CapType, CapSet, Command};
+use core::cap::{Actor, CapType, CapRef, CapSet, Command};
 use core::item::{ItemCapSet};
+use std::fmt;
 
 cap_type_set!(MobCap,
     CapTransfer = 0,
@@ -33,7 +34,7 @@ pub struct Mob {
     inv: Vec<ItemCapSet>,
 }
 
-pub type MobCapSet = CapSet<MobCap, MobCmd, Mob>;
+pub type MobCapSet = CapSet<MobCap, Box<CapRef<MobCmd>>>;
 
 impl Mob {
     pub fn make(data: MobData) -> Mob {
