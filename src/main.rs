@@ -14,14 +14,19 @@ mod core;
 green_start!(main)
 
 fn main() {
-    let item = Actor::make_actor(box Item::make(ItemData));
-    for _ in range(0,10_000u) {
-        let new_item = Actor::make_actor(box Item::make(ItemData));
+    let item_data = Item::make(ItemData);
+    let mut item = Actor::spawn_actor(box item_data);
+    for i in range(0u, 10_000) {
+        let new_item = if i % 2 == 0 {
+            Actor::make_actor(box Item::make(ItemData))
+        } else {
+            Actor::spawn_actor(box Item::make(ItemData))
+        };
         item.send_cmd_async(item::Give(new_item)).unwrap();
     }
 
     let mob = Mob::make(MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()});
-    let mobcap = Actor::make_actor(box mob);
-    println!("{}", mobcap);
+    let mut mobcap = Actor::make_actor(box mob);
     mobcap.send_cmd_async(mob::Give(item)).unwrap();
+    println!("{}", mobcap);
 }

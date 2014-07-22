@@ -2,14 +2,14 @@ use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
 use std::fmt;
 
-use core::cap::{Actor, CapSet, CapType, Command};
+use core::cap::{Actor, CapType, Command};
 use core::item::{ItemCapSet};
 
 cap_type_set!(MobCap,
     CapTransfer = 0,
 )
 
-pub enum MobCmd{
+pub enum MobCmd {
     Give(ItemCapSet),
 }
 
@@ -35,15 +35,10 @@ pub struct MobData {
     pub desc: String,
 }
 
+#[deriving(Show)]
 pub struct Mob {
     data: MobData,
     inv: Vec<ItemCapSet>,
-}
-
-impl fmt::Show for Mob {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Mob data={} inv={}", self.data, self.inv)
-    }
 }
 
 impl Mob {
@@ -53,10 +48,9 @@ impl Mob {
 }
 
 impl Actor<MobCap, MobCmd> for Mob {
-   fn handle(&mut self, cmd: MobCmd, _cap_set: &CapSet<MobCap, MobCmd>) {
+   fn handle(&mut self, cmd: MobCmd) {
         match cmd {
             Give(item) => {
-                //println!("{}: Got {}!", *self, item);
                 self.inv.push(item);
             }
         }

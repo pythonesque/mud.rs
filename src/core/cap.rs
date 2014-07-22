@@ -1,5 +1,6 @@
 use std::collections::EnumSet;
 use std::collections::enum_set::CLike;
+use std::comm::Messages;
 use std::fmt;
 use std::io::{ChanReader, ChanWriter};
 
@@ -32,21 +33,33 @@ enum CmdWrap<C> {
     Cmd(C)
 }
 
-pub struct CapSet<T, C> {
-    cap_types: EnumSet<T>,
-    tx: Sender<CmdWrap<C>>,
+enum CapRef<C, A> {
+    Task(Sender<CmdWrap<C>>),
+    Ref(Box<A>),
 }
 
-impl<T, C: Send> fmt::Show for CapSet<T, C> {
+pub struct CapSet<T, C, A> {
+    cap_types: EnumSet<T>,
+    cap_ref: CapRef<C, A>,
+}
+
+impl<A: fmt::Show, T, C: Send> fmt::Show for CapSet<T, C, A> {
     /// WARNING: could cause recursive task failure!  Only call this if you
     /// directly own the capability you are calling it on!
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (ftx, frx) = channel();
-        let fw: ChanWriter = ChanWriter::new(ftx);
-        let mut fr = ChanReader::new(frx);
-        self.tx.send_opt(Write(box fw)).ok()
-        .and_then( |_| fr.read_to_end().ok() )
-        .map_or( Err(fmt::WriteError), |buf| f.write(buf.as_slice()))
+        match self.cap_ref {
+            Task(ref tx) => {
+                let (ftx, frx) = channel();
+                let fw: ChanWriter = ChanWriter::new(ftx);
+                let mut fr = ChanReader::new(frx);
+                tx.send_opt(Write(box fw)).ok()
+                .and_then( |_| fr.read_to_end().ok() )
+                .map_or( Err(fmt::WriteError), |buf| f.write(buf.as_slice()))
+            },
+            Ref(ref actor) => {
+                actor.fmt(f)
+            },
+        }
     }
 }
 
@@ -84,16 +97,24 @@ macro_rules! cap_type_set(
 
 /// We deliberately do not implement Clone for this.  Anyone who wants to do so
 /// must wrap it in a Arc first.
-impl<T: CapType, C: Command<T> + Send> CapSet<T, C> {
-    pub fn send_cmd_async(&self, cmd: C) -> Result<(), C> {
+impl<T: CapType, C: Command<T> + Send, A: Actor<T, C>> CapSet<T, C, A> {
+    pub fn send_cmd_async(&mut self, cmd: C) -> Result<(), C> {
         if self.cap_types.contains_elem(cmd.cap_type()) {
-            // Justification for the fail!: if it comes back it should be the same
-            // value.
-            self.tx.send_opt(Cmd(cmd)).map_err( |cmd|
-                match cmd {
-                    Cmd(c) => c,
-                    _ => fail!("Can't happen")
-                })
+            match self.cap_ref {
+                Task(ref tx) => {
+                    // Justification for the fail!: if it comes back it should be the same
+                    // value.
+                    tx.send_opt(Cmd(cmd)).map_err( |cmd|
+                        match cmd {
+                            Cmd(c) => c,
+                            _ => fail!("Can't happen")
+                        })
+                },
+                Ref(ref mut actor) => {
+                    actor.handle(cmd);
+                    Ok(())
+                }
+            }
         } else {
             Err(cmd)
         }
@@ -105,32 +126,42 @@ impl<T: CapType, C: Command<T> + Send> CapSet<T, C> {
 /// constructed.
 /// (EnumSet<T> is Send because it's internally a uint).
 #[unsafe_destructor]
-impl<T: CapType, C: Command<T> + Send> Drop for CapSet<T, C> {
+impl<T: CapType, C: Command<T> + Send, A> Drop for CapSet<T, C, A> {
    fn drop(&mut self) {
-        self.tx.send_opt(Drop).unwrap_or(());
+        match self.cap_ref {
+            Task(ref tx) => tx.send_opt(Drop).unwrap_or(()),
+            _ => ()
+        }
     }
 }
 
-pub trait Actor<T: CapType, C: Command<T> + Send>: Send + fmt::Show {
+pub trait Actor<T: CapType, C: Command<T> + Send>: fmt::Show + Send {
     /// This is the main command handler called in an event loop.
     /// cmd: Command structure received as an argument.
-    fn handle(&mut self, cmd: C, cap_set: &CapSet<T, C>);
+    fn handle(&mut self, cmd: C/*, cap_set: &CapSet<T, C, Self>*/);
 
-    fn make_actor(actor: Box<Self>) -> CapSet<T, C> {
+    fn make_actor(actor: Box<Self>) -> CapSet<T, C, Self> {
+        let cap_types : EnumSet<T> = CapType::all();
+        let cap_set : CapSet<T, C, Self> = CapSet { cap_types: cap_types, cap_ref: Ref(actor) };
+        cap_set
+    }
+
+    fn spawn_actor(actor: Box<Self>) -> CapSet<T, C, Self> {
         let (tx, rx) = channel();
         let cap_types = CapType::all();
         let tx_clone = tx.clone();
         spawn(proc() {
             let mut actor = actor;
-            let cap_set = CapSet { cap_types: cap_types, tx: tx };
-            for cmd in rx.iter() {
+            /*let cap_set : CapSet<T, C, Self> = CapSet { cap_types: cap_types, cap_ref: Task(tx) };*/
+            let mut iter : Messages<CmdWrap<C>> = rx.iter();
+            for cmd in iter {
                 match cmd {
-                    Cmd(cmd) => actor.handle(cmd, &cap_set),
+                    Cmd(cmd) => actor.handle(cmd),
                     Write(mut w) => {(write!(&mut w, "{}", actor)).ok(); },
                     Drop => break
                 }
             }
         });
-        CapSet { cap_types: cap_types, tx: tx_clone }
+        CapSet { cap_types: cap_types, cap_ref: Task(tx_clone) }
     }
 }

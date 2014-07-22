@@ -12,8 +12,6 @@ pub enum ItemCmd {
     Give(ItemCapSet),
 }
 
-pub type ItemCapSet = CapSet<ItemCap, ItemCmd>;
-
 impl fmt::Show for ItemCmd {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -40,6 +38,8 @@ pub struct Item {
     contents: Vec<ItemCapSet>,
 }
 
+pub type ItemCapSet = CapSet<ItemCap, ItemCmd, Item>;
+
 impl Item {
     pub fn make(data: ItemData) -> Item {
         let contents = Vec::new();
@@ -48,7 +48,7 @@ impl Item {
 }
 
 impl Actor<ItemCap, ItemCmd> for Item {
-   fn handle(&mut self, cmd: ItemCmd, _cap_set: &ItemCapSet) {
+   fn handle(&mut self, cmd: ItemCmd) {
         match cmd {
             Give(item) => {
                 self.contents.push(item);
