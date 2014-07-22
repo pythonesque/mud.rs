@@ -1,31 +1,58 @@
-use std::sync::Arc;
+use std::collections::enum_set::CLike;
+use std::collections::EnumSet;
 use std::fmt;
+
+use core::cap::{Actor, CapSet, CapType, Command};
+
+cap_type_set!(ItemCap,
+    CapTransfer = 0,
+)
+
+pub enum ItemCmd {
+    Give(ItemCapSet),
+}
+
+pub type ItemCapSet = CapSet<ItemCap, ItemCmd>;
+
+impl fmt::Show for ItemCmd {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Give(_) => write!(f, "Give")
+        }
+    }
+}
+
+impl Command<ItemCap> for ItemCmd {
+    fn cap_type(&self) -> ItemCap {
+        match *self {
+            Give(_) => CapTransfer,
+        }
+    }
+}
 
 #[deriving(Clone,Show)]
 pub struct ItemData /*{
 }*/;
 
-#[deriving(Clone)]
+#[deriving(Show)]
 pub struct Item {
     data: ItemData,
-    contents: Arc<Vec<Item>>,
-}
-
-impl fmt::Show for Item {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Item data={} contents={}", self.data, self.contents.deref())
-    }
+    contents: Vec<ItemCapSet>,
 }
 
 impl Item {
     pub fn make(data: ItemData) -> Item {
-        let contents = Arc::new(Vec::new());
+        let contents = Vec::new();
         Item { data: data, contents: contents }
     }
+}
 
-    pub fn clone_add<'a>(&'a self, item: Item) -> Item {
-        let mut contents = self.contents.clone();
-        contents.make_unique().push(item);
-        Item { data: self.data, contents: contents }
+impl Actor<ItemCap, ItemCmd> for Item {
+   fn handle(&mut self, cmd: ItemCmd, _cap_set: &ItemCapSet) {
+        match cmd {
+            Give(item) => {
+                self.contents.push(item);
+            }
+        }
     }
 }

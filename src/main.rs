@@ -4,32 +4,24 @@
 #[phase(plugin)] extern crate green;
 
 use core::cap::Actor;
+use core::item;
 use core::item::{Item, ItemData};
 use core::mob;
-use core::mob::Mob;
-use std::sync::Arc;
+use core::mob::{Mob, MobData};
 
 mod core;
 
 green_start!(main)
 
 fn main() {
-    let item1 = Arc::new(Item::make(ItemData));
-    let item1_clone = item1.clone();
-    spawn(proc() {
-        let item1 = item1_clone;
-        for _ in range(0,10000u) {
-            let item1_clone = item1.clone();
-            spawn(proc() {
-                let item1 = item1_clone;
-                let item2 = Item::make(ItemData);
-                item1.clone_add(item2);
-            });
-        }
-    });
-    println!("{}", item1.deref());
+    let item = Actor::make_actor(box Item::make(ItemData));
+    for _ in range(0,10_000u) {
+        let new_item = Actor::make_actor(box Item::make(ItemData));
+        item.send_cmd_async(item::Give(new_item)).unwrap();
+    }
 
-    let mob = Mob::make();
+    let mob = Mob::make(MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()});
     let mobcap = Actor::make_actor(box mob);
-    mobcap.send_cmd_async(mob::Transfer).unwrap();
+    println!("{}", mobcap);
+    mobcap.send_cmd_async(mob::Give(item)).unwrap();
 }

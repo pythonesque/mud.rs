@@ -1,5 +1,7 @@
 use std::collections::EnumSet;
 use std::collections::enum_set::CLike;
+use std::fmt;
+use std::io::{ChanReader, ChanWriter};
 
 pub trait CapType: CLike {
    /// This should return a "full" set of all capability types
@@ -24,9 +26,28 @@ pub trait Command<T> {
     fn cap_type(&self) -> T;
 }
 
+enum CmdWrap<C> {
+    Drop,
+    Write(Box<Writer + Send>),
+    Cmd(C)
+}
+
 pub struct CapSet<T, C> {
     cap_types: EnumSet<T>,
-    tx: Sender<Option<C>>,
+    tx: Sender<CmdWrap<C>>,
+}
+
+impl<T, C: Send> fmt::Show for CapSet<T, C> {
+    /// WARNING: could cause recursive task failure!  Only call this if you
+    /// directly own the capability you are calling it on!
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (ftx, frx) = channel();
+        let fw: ChanWriter = ChanWriter::new(ftx);
+        let mut fr = ChanReader::new(frx);
+        self.tx.send_opt(Write(box fw)).ok()
+        .and_then( |_| fr.read_to_end().ok() )
+        .map_or( Err(fmt::WriteError), |buf| f.write(buf.as_slice()))
+    }
 }
 
 /// sugar for easily creating a capability type set
@@ -66,9 +87,13 @@ macro_rules! cap_type_set(
 impl<T: CapType, C: Command<T> + Send> CapSet<T, C> {
     pub fn send_cmd_async(&self, cmd: C) -> Result<(), C> {
         if self.cap_types.contains_elem(cmd.cap_type()) {
-            // Justification for unwrap: if it comes back it should be the same
+            // Justification for the fail!: if it comes back it should be the same
             // value.
-            self.tx.send_opt(Some(cmd)).map_err( |cmd| cmd.unwrap())
+            self.tx.send_opt(Cmd(cmd)).map_err( |cmd|
+                match cmd {
+                    Cmd(c) => c,
+                    _ => fail!("Can't happen")
+                })
         } else {
             Err(cmd)
         }
@@ -82,11 +107,11 @@ impl<T: CapType, C: Command<T> + Send> CapSet<T, C> {
 #[unsafe_destructor]
 impl<T: CapType, C: Command<T> + Send> Drop for CapSet<T, C> {
    fn drop(&mut self) {
-        self.tx.send_opt(None).unwrap_or(());
+        self.tx.send_opt(Drop).unwrap_or(());
     }
 }
 
-pub trait Actor<T: CapType, C: Command<T> + Send>: Send {
+pub trait Actor<T: CapType, C: Command<T> + Send>: Send + fmt::Show {
     /// This is the main command handler called in an event loop.
     /// cmd: Command structure received as an argument.
     fn handle(&mut self, cmd: C, cap_set: &CapSet<T, C>);
@@ -100,8 +125,9 @@ pub trait Actor<T: CapType, C: Command<T> + Send>: Send {
             let cap_set = CapSet { cap_types: cap_types, tx: tx };
             for cmd in rx.iter() {
                 match cmd {
-                    Some(cmd) => actor.handle(cmd, &cap_set),
-                    None => break
+                    Cmd(cmd) => actor.handle(cmd, &cap_set),
+                    Write(mut w) => {(write!(&mut w, "{}", actor)).ok(); },
+                    Drop => break
                 }
             }
         });
