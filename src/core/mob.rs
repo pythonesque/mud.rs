@@ -1,6 +1,5 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
-use std::fmt;
 
 use core::cap::{Actor, CapType, Command};
 use core::item::{ItemCapSet};
@@ -9,16 +8,9 @@ cap_type_set!(MobCap,
     CapTransfer = 0,
 )
 
+#[deriving(Show)]
 pub enum MobCmd {
     Give(ItemCapSet),
-}
-
-impl fmt::Show for MobCmd {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Give(_) => write!(f, "Give")
-        }
-    }
 }
 
 impl Command<MobCap> for MobCmd {
