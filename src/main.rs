@@ -8,7 +8,6 @@ fn main() {
     impl<S, T: Trait<S>> Drop for Struct<T> {
         fn drop(&mut self) {}
     }
-    impl<S> Trait<S> for Struct<S> {}
 
-    box Struct(()) as Box<Trait<()>>;
+    Struct(());
 }
