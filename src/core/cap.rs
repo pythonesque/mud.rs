@@ -155,21 +155,16 @@ impl<T: CapType, C: Command<T>> CapSet<T, Box<CapRef<C> + Send>> {
 pub trait Actor<T: CapType, C: Command<T>>: fmt::Show + Send {
     /// This is the main command handler called in an event loop.
     /// cmd: Command structure received as an argument.
-    fn handle(&mut self, cmd: C/*, cap_set: &CapSet<T, C, Self>*/);
+    fn handle(&mut self, cmd: C);
 
     fn make_actor(actor: Self) -> CapSet<T, Box<CapRef<C> + Send>> {
-        let cap_set : CapSet<T, Box<CapRef<C> + Send>> =
-            CapSet { cap_types: CapType::all(), cap_ref: box CapMemRef { inner: actor } as Box<CapRef<C> + Send> };
-        cap_set
+        CapSet { cap_types: CapType::all(), cap_ref: box CapMemRef { inner: actor } as Box<CapRef<C> + Send> }
     }
 
     fn spawn_actor(actor: Self) -> CapSet<T, Box<CapRef<C> + Send>> {
         let (tx, rx) = channel();
-        let cap_types = CapType::all();
-        let tx_clone = tx.clone();
         spawn(proc() {
             let mut actor = actor;
-            /*let cap_set : CapSet<T, C, Self> = CapSet { cap_types: cap_types, cap_ref: Task(tx) };*/
             let mut iter : Messages<CmdWrap<C>> = rx.iter();
             for cmd in iter {
                 match cmd {
@@ -179,7 +174,6 @@ pub trait Actor<T: CapType, C: Command<T>>: fmt::Show + Send {
                 }
             }
         });
-        let cap_set : CapSet<T, Box<CapRef<C> + Send>> = CapSet { cap_types: cap_types, cap_ref: box CapTaskRef { tx: tx_clone } as Box<CapRef<C> + Send> };
-        cap_set
+        CapSet { cap_types: CapType::all(), cap_ref: box CapTaskRef { tx: tx } as Box<CapRef<C> + Send> }
     }
 }
