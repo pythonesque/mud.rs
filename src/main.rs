@@ -22,11 +22,11 @@ fn main() {
         } else {
             Actor::make_actor(Item::make(ItemData))
         };
-        item.send_cmd_async(item::Give(new_item)).unwrap();
+        item.send_cmd(item::Give(new_item)).unwrap();
     }
 
     let mob = Mob::make(MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()});
     let mut mobcap = Actor::make_actor(mob);
-    mobcap.send_cmd_async(mob::Give(item)).unwrap();
+    mobcap.send_cmd(mob::Give(item)).unwrap();
     println!("{}", mobcap);
 }

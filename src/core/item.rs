@@ -1,7 +1,7 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
 
-use core::cap::{Actor, CapSet, CapType, Command};
+use core::cap::{Actor, CapRef, CapSet, CapType, Command};
 
 cap_type_set!(ItemCap,
     CapTransfer = 0,
@@ -30,7 +30,7 @@ pub struct Item {
     contents: Vec<ItemCapSet>,
 }
 
-pub type ItemCapSet = CapSet<ItemCap, ItemCmd, Item>;
+pub type ItemCapSet = CapSet<ItemCap, Box<CapRef<ItemCmd> + Send>>;
 
 impl Item {
     pub fn make(data: ItemData) -> Item {
