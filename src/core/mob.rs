@@ -1,5 +1,6 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
+use std::str::MaybeOwned;
 
 use core::cap::{Actor, CapType, CapRef, CapSet, Command};
 use core::item::{ItemCapSet};
@@ -22,26 +23,26 @@ impl Command<MobCap> for MobCmd {
 }
 
 #[deriving(Show,Clone)]
-pub struct MobData {
-    pub title: String,
-    pub desc: String,
+pub struct MobData<'a> {
+    pub title: MaybeOwned<'a>,
+    pub desc: MaybeOwned<'a>,
 }
 
 #[deriving(Show)]
-pub struct Mob {
-    data: MobData,
+pub struct Mob<'a> {
+    data: MobData<'a>,
     inv: Vec<ItemCapSet>,
 }
 
 pub type MobCapSet = CapSet<MobCap, Box<CapRef<MobCmd> + Send>>;
 
-impl Mob {
+impl<'a> Mob<'a> {
     pub fn make(data: MobData) -> Mob {
         Mob { data: data, inv: Vec::new() }
     }
 }
 
-impl Actor<MobCap, MobCmd> for Mob {
+impl Actor<MobCap, MobCmd> for Mob<'static> {
    fn handle(&mut self, cmd: MobCmd) {
         match cmd {
             Give(item) => {

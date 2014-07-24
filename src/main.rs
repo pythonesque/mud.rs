@@ -24,8 +24,7 @@ fn main() {
         };
         item.send_cmd(item::Give(new_item)).unwrap();
     }
-
-    let mob = Mob::make(MobData { title: "Zombie".to_string(), desc: "Shuffling aimlessly.".to_string()});
+    let mob = Mob::make(MobData { title: "Zombie".into_maybe_owned(), desc: "Shuffling aimlessly.".into_maybe_owned()});
     let mut mobcap = Actor::make_actor(mob);
     mobcap.send_cmd(mob::Give(item)).unwrap();
     println!("{}", mobcap);
