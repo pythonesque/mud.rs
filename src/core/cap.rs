@@ -4,7 +4,7 @@ use std::comm::Messages;
 use std::fmt;
 use std::io::{ChanReader, ChanWriter};
 
-pub trait CapType: CLike + fmt::Show {
+pub trait CapType: CLike {
    /// This should return a "full" set of all capability types
    /// that the actor cares about.  The reason for this is so
    /// we have something to return to the creator, and also
@@ -101,7 +101,7 @@ pub struct CapSet<T, R> {
     cap_ref: R,
 }
 
-impl<T, C: fmt::Show> fmt::Show for CapSet<T, Box<CapRef<C> + Send>> {
+impl<T, C> fmt::Show for CapSet<T, Box<CapRef<C> + Send>> {
     /// WARNING: could cause recursive task failure!  Only call this if you
     /// directly own the capability you are calling it on!
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

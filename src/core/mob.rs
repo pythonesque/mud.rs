@@ -22,7 +22,7 @@ impl Command<MobCap> for MobCmd {
     }
 }
 
-#[deriving(Show,Clone)]
+#[deriving(Show)]
 pub struct MobData<'a> {
     pub title: MaybeOwned<'a>,
     pub desc: MaybeOwned<'a>,

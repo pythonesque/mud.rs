@@ -20,7 +20,7 @@ impl Command<ItemCap> for ItemCmd {
     }
 }
 
-#[deriving(Clone,Show)]
+#[deriving(Show)]
 pub struct ItemData /*{
 }*/;
 
