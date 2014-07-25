@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::EnumSet;
 use std::collections::enum_set::CLike;
 use std::comm::Messages;
@@ -36,23 +37,31 @@ enum CmdWrap<C> {
 /// We deliberately do not implement Clone for this.  Anyone who wants to do so
 /// must wrap it in a Arc first.
 pub trait CapRef<C>: fmt::Show {
-    fn send_cmd(&mut self, c: C) -> Result<(), C>;
+    fn send_cmd(&self, c: C) -> Result<(), C>;
 }
 
 struct CapMemRef<A> {
-    inner: A,
+    inner: RefCell<A>,
 }
 
 impl<T: CapType, C: Command<T>, A: Actor<T, C>> CapRef<C> for CapMemRef<A> {
-    fn send_cmd(&mut self, cmd: C) -> Result<(), C> {
-        self.inner.handle(cmd);
-        Ok(())
+    fn send_cmd(&self, cmd: C) -> Result<(), C> {
+        match self.inner.try_borrow_mut() {
+            Some(mut inner) => {
+                inner.handle(cmd);
+                Ok(())
+            },
+            None => Err(cmd)
+        }
     }
 }
 
 impl<A: fmt::Show> fmt::Show for CapMemRef<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.fmt(f)
+        match self.inner.try_borrow() {
+            Some(inner) => inner.fmt(f),
+            None => Err(fmt::WriteError)
+        }
     }
 }
 
@@ -61,7 +70,7 @@ struct CapTaskRef<C> {
 }
 
 impl<C: Send> CapRef<C> for CapTaskRef<C> {
-    fn send_cmd(&mut self, cmd: C) -> Result<(), C> {
+    fn send_cmd(&self, cmd: C) -> Result<(), C> {
         // Justification for the fail!: if it comes back it should be the same
         // value.
         self.tx.send_opt(Cmd(cmd)).map_err( |cmd|
@@ -109,6 +118,11 @@ impl<T, C> fmt::Show for CapSet<T, Box<CapRef<C> + Send>> {
     }
 }
 
+/*impl<T, C> Clone for CapSet<T, Box<CapRef<C> + Send>> {
+    fn clone(&self) {
+        self.cap_ref.
+    }
+}*/
 
 /// sugar for easily creating a capability type set
 macro_rules! cap_type_set(
@@ -143,7 +157,7 @@ macro_rules! cap_type_set(
 )
 
 impl<T: CapType, C: Command<T>> CapSet<T, Box<CapRef<C> + Send>> {
-    pub fn send_cmd(&mut self, cmd: C) -> Result<(), C> {
+    pub fn send_cmd(&self, cmd: C) -> Result<(), C> {
         if self.cap_types.contains_elem(cmd.cap_type()) {
             self.cap_ref.send_cmd(cmd)
         } else {
@@ -158,7 +172,7 @@ pub trait Actor<T: CapType, C: Command<T>>: fmt::Show + Send {
     fn handle(&mut self, cmd: C);
 
     fn make_actor(actor: Self) -> CapSet<T, Box<CapRef<C> + Send>> {
-        CapSet { cap_types: CapType::all(), cap_ref: box CapMemRef { inner: actor } as Box<CapRef<C> + Send> }
+        CapSet { cap_types: CapType::all(), cap_ref: box CapMemRef { inner: RefCell::new(actor) } as Box<CapRef<C> + Send> }
     }
 
     fn spawn_actor(actor: Self) -> CapSet<T, Box<CapRef<C> + Send>> {
