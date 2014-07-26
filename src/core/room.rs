@@ -1,6 +1,7 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
 use std::str::MaybeOwned;
+use std::uint;
 
 use core::cap::{Actor, CapType, CapRef, CapSet, Command};
 use core::item::ItemCapSet;

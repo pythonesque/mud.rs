@@ -1,5 +1,6 @@
 use std::collections::enum_set::CLike;
 use std::collections::EnumSet;
+use std::uint;
 
 use core::cap::{Actor, CapRef, CapSet, CapType, Command};
 
